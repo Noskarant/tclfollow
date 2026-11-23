@@ -1,1 +1,0 @@
-{"name":"tclfollow","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check src/config.js && node --check src/data.js && node --check src/map.js && node --check src/app.js && node --check worker/src/index.js"},"engines":{"node":">=20"}}

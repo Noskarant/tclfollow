@@ -1,0 +1,3 @@
+# Ces variables sont des SECRETS : ne pas les committer.
+GRANDLYON_API_USERNAME=remplacer
+GRANDLYON_API_PASSWORD=remplacer
