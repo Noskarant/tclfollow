@@ -117,7 +117,7 @@ class VehicleLayer {
       }
       record.target = { ...v };
       record.start = performance.now();
-      record.duration = v.isDemo ? 1100 : 2500;
+      record.duration = v.isDemo ? 220 : 2500;
       if (record.current.lng !== v.lng || record.current.lat !== v.lat) record.moving = true;
       record.mesh.visible = this.enabled;
     }
