@@ -75,8 +75,10 @@ export function parseDelay(value) {
 export function getLineName(raw) {
   const value = String(raw ?? "").trim();
   if (!value) return "?";
-  const pieces = value.split(":");
-  return pieces[pieces.length - 1].replace(/^TCL_?/i, "").replace(/^Line_?/i, "").trim() || "?";
+  const pieces = value.split(":").filter(Boolean);
+  const end = pieces[pieces.length - 1];
+  const candidate = /^(SYTRAL|LOC|TCL)$/i.test(end) && pieces.length > 1 ? pieces[pieces.length - 2] : end;
+  return (candidate || "?").replace(/^TCL_?/i, "").replace(/^Line_?/i, "").trim() || "?";
 }
 export function getMode(line, raw = "") {
   const s = String(line).toUpperCase();
@@ -94,10 +96,14 @@ export function normalizeVehicle(v) {
   const line = getLineName(v.lineId ?? v.line ?? v.LineRef?.value);
   const mode = getMode(line, String(v.mode || v.dataSource || ""));
   const rawId = v.vehicleId ?? v.id ?? v.VehicleRef?.value;
+  const rawDestination = String(v.destinationName ?? v.destination ?? "");
+  const destinationRef = String(v.destinationRef ?? (rawDestination.includes("StopArea:") ? rawDestination : ""));
+  const destinationId = destinationRef.match(/StopArea:SP:(\d+)/i)?.[1] || null;
+  const destination = /ActIV:|StopArea:|:SYTRAL$/i.test(rawDestination) || !rawDestination ? "Direction non renseignée" : rawDestination;
   if (rawId == null) return null;
   const bearingValue = Number(v.bearing ?? v.Bearing);
   return {
-    id: String(rawId), line, mode, destination: String(v.destinationName ?? v.destination ?? "Destination non renseignée"),
+    id: String(rawId), line, mode, destination, destinationId,
     lng, lat, bearing: Number.isFinite(bearingValue) ? ((bearingValue % 360) + 360) % 360 : 0,
     color: COLORS[line] || COLORS[mode], delaySeconds: parseDelay(v.delay ?? v.Delay),
     recordedAt: v.recordedAtTime ?? v.recordedAt ?? null,
