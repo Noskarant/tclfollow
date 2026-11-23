@@ -86,6 +86,21 @@ function credentials(env) {
   if (!env.GRANDLYON_API_USERNAME || !env.GRANDLYON_API_PASSWORD) return null;
   return "Basic " + btoa(env.GRANDLYON_API_USERNAME + ":" + env.GRANDLYON_API_PASSWORD);
 }
+export function convertStops(geojson) {
+  if (geojson?.type !== "FeatureCollection" || !Array.isArray(geojson.features)) return [];
+  const result = [];
+  for (const feature of geojson.features) {
+    const p = feature?.properties || {};
+    if (feature?.geometry?.type !== "Point" || !Array.isArray(feature.geometry.coordinates)) continue;
+    const [lng,lat] = feature.geometry.coordinates.map(Number);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    const name = String(p.nom || p.nomarret || p.nom_arret || "").trim();
+    const id = String(p.id || p.idarret || p.gid || feature.id || "");
+    if (!name || !id) continue;
+    result.push({id,name,lng,lat,routes:String(p.desserte || ""),accessible:p.pmr ?? null,city:String(p.commune || "")});
+  }
+  return result;
+}
 export default {
   async fetch(request, env = {}, ctx = {}) {
     const url = new URL(request.url), path = url.pathname.replace(/\/+$/, "") || "/";
@@ -101,6 +116,14 @@ export default {
       } catch (e) {
         return respond({ vehicles: [], apiStatus: "API_DOWN", apiResponseTimestamp: null, lastFetchTime: new Date().toISOString(), error: "Flux de positions temporairement indisponible" }, request, env, 502);
       }
+    }
+    if (path === "/api/stops") {
+      try {
+        const raw = await getCached("raw-stops", ROUTE_TTL, () => retrieve(API.routes.stops));
+        const stops = convertStops(raw);
+        const bounded = stops.filter(s => s.lat >= 45.62 && s.lat <= 45.93 && s.lng >= 4.58 && s.lng <= 5.08);
+        return respond({ stops: bounded, total: bounded.length, status: "OK" }, request, env, 200, 1800);
+      } catch(e) { return respond({ stops: [], status: "API_DOWN" }, request, env, 502); }
     }
     const match = /^\/api\/lines\/([a-z]+)$/.exec(path);
     if (match) {
