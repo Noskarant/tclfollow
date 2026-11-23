@@ -48,7 +48,8 @@ export function mapActivity(activity) {
     latitude: lat, longitude: lon,
     bearing: j.Bearing ?? null, delay: j.Delay ?? null,
     recordedAtTime: activity.RecordedAtTime ?? null,
-    destinationName: j.DestinationRef?.value ?? j.DestinationName?.[0]?.value ?? null,
+    destinationName: j.DestinationName?.[0]?.value ?? j.DestinationName?.value ?? null,
+    destinationRef: j.DestinationRef?.value ?? null,
     validUntilTime: activity.ValidUntilTime ?? null,
     dataSource: j.DataSource ?? null
   };
