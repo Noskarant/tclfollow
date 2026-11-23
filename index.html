@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0a101b" />
+  <meta name="description" content="Explorez le réseau TCL de Lyon en 3D. Suivez les bus et tramways avec les positions officielles lorsque le direct est configuré." />
+  <title>TCL Follow — Lyon en mouvement</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="src/styles.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="app-shell">
+    <main class="map-stage" id="map-stage" aria-label="Carte 3D du réseau TCL">
+      <div id="map"></div>
+      <div class="map-vignette" aria-hidden="true"></div>
+      <div class="map-topbar">
+        <button class="icon-btn mobile-menu" id="sidebar-toggle" title="Afficher le menu" aria-label="Afficher le menu">☰</button>
+        <div class="route-breadcrumb"><span class="breadcrumb-pin">⌖</span> FRANCE <span class="chevron">/</span> LYON <span class="chevron">/</span> RÉSEAU TCL</div>
+        <div class="topbar-spacer"></div>
+        <div class="live-indicator" id="source-state"><span class="live-dot"></span><span id="source-label">DÉMONSTRATION</span></div>
+        <div class="topbar-clock" id="clock">--:--:--</div>
+        <button class="icon-btn top-settings" id="btn-settings" title="Paramètres" aria-label="Paramètres">
+          <svg viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8L17 7m-10 10-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+        </button>
+      </div>
+      <div class="map-title"><span class="eyebrow">LE RÉSEAU EN MOUVEMENT</span><h1>Lyon, <em>en direct.</em></h1><p id="hud-subtitle">Explorez la ville sous un nouvel angle.</p></div>
+      <div class="map-tools" aria-label="Contrôles de la carte">
+        <button class="tool-btn active" id="btn-view" title="Basculer entre 3D et 2D"><span id="view-label">3D</span></button>
+        <button class="tool-btn" id="btn-locate" title="Me géolocaliser" aria-label="Me géolocaliser">◎</button>
+        <button class="tool-btn" id="btn-home" title="Vue générale" aria-label="Vue générale">⌂</button>
+        <button class="tool-btn" id="btn-fullscreen" title="Plein écran" aria-label="Plein écran">⛶</button>
+      </div>
+      <aside class="map-legend" id="legend"><span class="legend-title">SUR LA CARTE</span><span><i class="legend-dot observed"></i> Observation récente</span><span><i class="legend-dot estimated"></i> Position extrapolée / ancienne</span><span><i class="legend-dot demo"></i> Démonstration simulée</span></aside>
+      <div class="timeline" id="timeline-wrap">
+        <div class="timeline-left"><span class="eyebrow" id="timeline-title">SIMULATION</span><strong id="timeline-label">Maintenant</strong></div>
+        <button class="timeline-button" id="play-btn" aria-label="Pause ou lecture">Ⅱ</button>
+        <input type="range" id="timeline" min="-120" max="0" value="0" step="1" aria-label="Déplacer le temps de démonstration" />
+        <button class="speed-button" id="speed-btn" aria-label="Vitesse de lecture">×1</button>
+        <div class="timeline-live"><span class="live-dot"></span><span id="timeline-status">DÉMO</span></div>
+      </div>
+      <div class="map-bottom-left"><span id="map-data-status">Positions simulées pour illustrer l'interface.</span></div>
+    </main>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-mark"><span class="logo-lane"></span><span class="logo-lane"></span><span class="logo-lane"></span></div>
+        <div class="brand-text"><strong>TCL<span>FOLLOW</span></strong><small>LYON TRANSIT EXPLORER</small></div>
+        <span class="version-tag">BETA</span>
+      </div>
+      <div class="sidebar-intro"><div class="section-number">01 / EXPLORER</div><h2>Votre ville.<br /><span>En mouvement.</span></h2><p>Visualisez le réseau de transports lyonnais comme jamais auparavant.</p></div>
+      <div class="sidebar-content">
+        <div class="source-card" id="source-card">
+          <div class="source-card-top"><span class="source-bulb" id="source-bulb">◉</span><strong id="source-caption">Mode démonstration</strong><span class="source-chevron">●</span></div>
+          <p id="source-description">Trajets animés simulés. Connectez le flux officiel pour voir les véhicules réels.</p>
+          <button class="source-action" id="btn-live">Configurer le direct <span>↗</span></button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-item"><div class="stat-label">VÉHICULES VISIBLES</div><div class="stat-value" id="live-count">—</div><span class="stat-foot" id="stat-foot">Simulation</span></div>
+          <div class="stat-item"><div class="stat-label">LIGNES AFFICHÉES</div><div class="stat-value" id="line-count">—</div><span class="stat-foot">Bus · Tram · Métro</span></div>
+        </div>
+        <label class="input-label" for="search">RECHERCHER</label>
+        <div class="search-box"><span class="search-icon">⌕</span><input id="search" placeholder="Ligne, destination, véhicule…" autocomplete="off" /><button id="clear-search" aria-label="Effacer la recherche">×</button></div>
+        <div class="section-head"><span>FILTRES</span><button id="reset-filters">Tout afficher</button></div>
+        <div class="mode-filters" id="modes">
+          <button class="mode-chip active" data-mode="bus"><i style="background:#ffbf69"></i> Bus</button>
+          <button class="mode-chip active" data-mode="tram"><i style="background:#af9aff"></i> Tram</button>
+          <button class="mode-chip active" data-mode="metro"><i style="background:#ff78bb"></i> Métro</button>
+          <button class="mode-chip active" data-mode="funicular"><i style="background:#72e8e0"></i> Funiculaire</button>
+        </div>
+        <div class="list-head"><div><span class="input-label">EXPLORER LE RÉSEAU</span><p>Sélectionnez un élément pour le suivre.</p></div><span class="list-total" id="list-total">—</span></div>
+        <div class="tab-bar" role="tablist" id="sidebar-tabs">
+          <button role="tab" class="tab active" data-tab="vehicles" aria-selected="true">Véhicules</button>
+          <button role="tab" class="tab" data-tab="lines" aria-selected="false">Lignes</button>
+          <button role="tab" class="tab" data-tab="favorites" aria-selected="false">Favoris</button>
+        </div>
+        <div class="results" id="sidebar-list"><div class="loading-state">Chargement de la carte…</div></div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="footer-grid"><button id="btn-demo" class="footer-link">◉ &nbsp; Voir la démo</button><button id="btn-share" class="footer-link">↗ &nbsp; Partager</button></div>
+        <div class="disclaimer">Projet indépendant · Non affilié à TCL / SYTRAL<br />Données cartographiques © OpenStreetMap</div>
+      </div>
+    </aside>
+
+    <section id="info-panel" class="detail-panel" aria-label="Détails du véhicule" hidden>
+      <div class="detail-topline"><span class="eyebrow">FICHE VÉHICULE</span><button class="icon-btn close-detail" id="close-detail" aria-label="Fermer">×</button></div>
+      <div id="detail-info"></div>
+      <div class="detail-actions"><button id="follow-btn" class="primary-button">◎ &nbsp; Suivre sur la carte</button><button id="favorite-btn" class="secondary-button" title="Favori">☆</button></div>
+      <small class="detail-notice" id="detail-notice"></small>
+    </section>
+
+    <dialog id="settings-modal" class="settings-modal">
+      <form method="dialog" id="settings-form">
+        <div class="modal-top"><div><span class="eyebrow">CONFIGURATION</span><h2>Sources de données</h2></div><button class="icon-btn" id="close-settings" type="button" aria-label="Fermer">×</button></div>
+        <div class="modal-note"><strong>Le vrai direct nécessite un backend.</strong><p>Les données SIRI Grand Lyon nécessitent une authentification. Ne saisissez jamais vos identifiants Grand Lyon dans ce site ; configurez uniquement l'URL publique de votre Worker sécurisé.</p></div>
+        <label class="input-label" for="api-url">URL DU WORKER (HTTPS)</label>
+        <input id="api-url" class="modal-input" type="url" placeholder="https://tclfollow-api.xxxxx.workers.dev" spellcheck="false" />
+        <div class="form-hint">Enregistrée localement dans ce navigateur. Aucun secret transmis.</div>
+        <div class="settings-actions"><button type="button" class="secondary-button" id="use-demo">Utiliser la démo</button><button type="submit" class="primary-button">Activer le direct</button></div>
+        <div class="modal-footer"><a href="https://github.com/Noskarant/tclfollow#déployer-le-suivi-réel" target="_blank" rel="noopener">Guide de déploiement ↗</a><span>Open Data SYTRAL</span></div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js"></script>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
