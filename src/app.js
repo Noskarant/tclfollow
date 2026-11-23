@@ -19,6 +19,7 @@ const state = {
 let map;
 let pollTimer = null;
 let uiLastRender = 0;
+let lastDemoMapUpdate = 0;
 let toastTimer = null;
 const SPEEDS = [0.5,1,2,5,10];
 
@@ -164,8 +165,11 @@ function animateDemo(time=performance.now()) {
   state.lastTick=time;
   if(state.mode==="demo") {
     if(state.demoPlaying) state.demoEpoch=Math.min(Date.now(),state.demoEpoch+dt*state.demoSpeed);
-    state.vehicles=makeDemoVehicles(state.demoEpoch);
-    updateMap();
+    if (time - lastDemoMapUpdate > 250) {
+      state.vehicles=makeDemoVehicles(state.demoEpoch);
+      updateMap();
+      lastDemoMapUpdate = time;
+    }
   }
   render(time);
 }
